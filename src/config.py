@@ -36,6 +36,7 @@ RESIZE_HEIGHT = 720  # Set to None to keep original size
 USE_CUDA = True
 USE_TENSORRT = True
 TENSORRT_PRECISION = "fp16"  # Options: fp32, fp16, int8
+CUDA_DEVICE = 0  # GPU device index to use (0, 1, 2, etc.)
 
 # Output configuration
 OUTPUT_FORMAT = "mp4"

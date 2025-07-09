@@ -66,6 +66,13 @@ def parse_arguments():
     )
 
     parser.add_argument(
+        '--cuda-device',
+        type=int,
+        default=config.CUDA_DEVICE,
+        help=f'CUDA device index to use (default: {config.CUDA_DEVICE})'
+    )
+
+    parser.add_argument(
         '--no-tensorrt',
         action='store_true',
         help='Disable TensorRT optimization'
@@ -81,6 +88,12 @@ def parse_arguments():
         '--list-videos',
         action='store_true',
         help='List available videos in the videos directory'
+    )
+
+    parser.add_argument(
+        '--list-gpus',
+        action='store_true',
+        help='List available CUDA devices and exit'
     )
 
     return parser.parse_args()
@@ -128,7 +141,8 @@ def process_video(input_path: str, output_path: str, args):
         confidence=args.confidence,
         iou_threshold=args.iou,
         use_cuda=not args.no_cuda,
-        use_tensorrt=not args.no_tensorrt
+        use_tensorrt=not args.no_tensorrt,
+        cuda_device=args.cuda_device
     )
 
     # Warm up the detector
@@ -234,6 +248,12 @@ def main():
 
     # Parse arguments
     args = parse_arguments()
+
+    # List GPUs if requested
+    if args.list_gpus:
+        from src.utils import list_cuda_devices
+        list_cuda_devices()
+        return
 
     # Print system info
     print_system_info()

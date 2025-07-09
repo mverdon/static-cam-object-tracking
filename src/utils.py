@@ -7,6 +7,7 @@ import cv2
 import numpy as np
 from typing import List, Tuple, Optional
 from pathlib import Path
+import torch
 
 from . import config
 from .tracker import Track
@@ -233,25 +234,40 @@ def get_available_video_files(directory: str) -> List[str]:
     return sorted(video_files)
 
 
+def list_cuda_devices():
+    """List available CUDA devices."""
+    if not torch.cuda.is_available():
+        print("CUDA is not available on this system.")
+        return
+    
+    device_count = torch.cuda.device_count()
+    print(f"\nFound {device_count} CUDA device(s):")
+    
+    for i in range(device_count):
+        device_name = torch.cuda.get_device_name(i)
+        device_props = torch.cuda.get_device_properties(i)
+        memory_gb = device_props.total_memory / (1024**3)
+        print(f"  Device {i}: {device_name}")
+        print(f"    Memory: {memory_gb:.1f} GB")
+        print(f"    Compute Capability: {device_props.major}.{device_props.minor}")
+    print()
+
+
 def print_system_info():
-    """Print system information for debugging."""
-    import torch
-
-    logger.info("=== System Information ===")
-    logger.info(f"OpenCV version: {cv2.__version__}")
-    logger.info(f"PyTorch version: {torch.__version__}")
-    logger.info(f"CUDA available: {torch.cuda.is_available()}")
-
+    """Print system information including CUDA devices."""
+    print("System Information:")
+    print("==================")
+    
+    # CUDA information
     if torch.cuda.is_available():
-        logger.info(f"CUDA version: {torch.version.cuda}")
-        logger.info(f"GPU count: {torch.cuda.device_count()}")
-        for i in range(torch.cuda.device_count()):
-            logger.info(f"GPU {i}: {torch.cuda.get_device_name(i)}")
-
-    try:
-        import tensorrt as trt
-        logger.info(f"TensorRT version: {trt.__version__}")
-    except ImportError:
-        logger.info("TensorRT not available")
-
-    logger.info("==========================")
+        current_device = torch.cuda.current_device()
+        print(f"CUDA available: Yes")
+        print(f"CUDA version: {torch.version.cuda}")
+        print(f"Current CUDA device: {current_device}")
+        list_cuda_devices()
+    else:
+        print("CUDA available: No")
+    
+    # OpenCV information
+    print(f"OpenCV version: {cv2.__version__}")
+    print()
