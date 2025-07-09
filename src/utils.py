@@ -56,7 +56,7 @@ def resize_frame(frame: np.ndarray, width: Optional[int] = None, height: Optiona
         # Resize based on height, maintain aspect ratio
         aspect_ratio = w / h
         new_width = int(height * aspect_ratio)
-        return cv2.resize(frame, (new_width, height))
+        return cv2.resize(frame, (new_width, height)) # type: ignore
 
 
 def draw_tracks(frame: np.ndarray, tracks: List[Track], class_names: dict) -> np.ndarray:
@@ -178,7 +178,7 @@ def create_video_writer(output_path: str, fps: float, width: int, height: int) -
     Returns:
         OpenCV VideoWriter object
     """
-    fourcc = cv2.VideoWriter_fourcc(*config.OUTPUT_CODEC)
+    fourcc = cv2.VideoWriter_fourcc(*config.OUTPUT_CODEC) # type: ignore
     writer = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
 
     if not writer.isOpened():
@@ -239,10 +239,10 @@ def list_cuda_devices():
     if not torch.cuda.is_available():
         print("CUDA is not available on this system.")
         return
-    
+
     device_count = torch.cuda.device_count()
     print(f"\nFound {device_count} CUDA device(s):")
-    
+
     for i in range(device_count):
         device_name = torch.cuda.get_device_name(i)
         device_props = torch.cuda.get_device_properties(i)
@@ -257,7 +257,7 @@ def print_system_info():
     """Print system information including CUDA devices."""
     print("System Information:")
     print("==================")
-    
+
     # CUDA information
     if torch.cuda.is_available():
         current_device = torch.cuda.current_device()
@@ -267,7 +267,7 @@ def print_system_info():
         list_cuda_devices()
     else:
         print("CUDA available: No")
-    
+
     # OpenCV information
     print(f"OpenCV version: {cv2.__version__}")
     print()

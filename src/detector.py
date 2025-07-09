@@ -47,7 +47,7 @@ class YOLODetector:
         if self.use_cuda and not torch.cuda.is_available():
             logger.warning("CUDA requested but not available. Falling back to CPU.")
             self.use_cuda = False
-        
+
         # Validate CUDA device
         if self.use_cuda and self.cuda_device >= torch.cuda.device_count():
             logger.warning(f"CUDA device {self.cuda_device} not available. Using device 0.")
@@ -60,7 +60,7 @@ class YOLODetector:
 
         # Load model
         self.model = self._load_model(model_path)
-        
+
         # Check if we loaded a TensorRT engine
         self.is_tensorrt_engine = str(self.model.model).endswith('.engine')
 
@@ -75,7 +75,7 @@ class YOLODetector:
             if self.use_tensorrt and self.use_cuda:
                 model_name = model_path.replace('.pt', '')
                 tensorrt_path = config.MODELS_DIR / f"{model_name}.engine"
-                
+
                 if tensorrt_path.exists():
                     logger.info(f"Loading existing TensorRT engine: {tensorrt_path}")
                     model = YOLO(str(tensorrt_path))
@@ -83,7 +83,7 @@ class YOLODetector:
                         # For TensorRT engines, device is specified in predict() call
                         logger.info(f"TensorRT engine loaded, will use CUDA device {self.cuda_device}")
                     return model
-            
+
             # Load PyTorch model if no TensorRT engine exists
             model_file = config.MODELS_DIR / model_path
             if not model_file.exists():
@@ -126,7 +126,7 @@ class YOLODetector:
                 verbose=False
             )
             logger.info("TensorRT optimization completed")
-            
+
             # Reload the model with the new TensorRT engine
             logger.info(f"Loading newly created TensorRT engine: {tensorrt_path}")
             self.model = YOLO(str(tensorrt_path))
