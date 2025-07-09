@@ -1,0 +1,39 @@
+# Core dependencies for Static Camera Object Tracking
+# Note: It's recommended to use uv instead of pip for this project
+
+# YOLOv11 and object detection
+ultralytics>=8.3.0
+
+# Computer vision
+opencv-python>=4.8.0
+
+# PyTorch (CUDA version recommended)
+# Install with: pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124
+torch>=2.0.0
+torchvision>=0.15.0
+torchaudio>=2.0.0
+
+# Scientific computing
+numpy>=1.24.0
+pillow>=10.0.0
+
+# Visualization
+matplotlib>=3.7.0
+seaborn>=0.12.0
+
+# Data handling
+pandas>=2.0.0
+pyyaml>=6.0
+
+# Utilities
+requests>=2.31.0
+psutil>=5.9.0
+
+# Development dependencies (optional)
+pytest>=7.4.0
+black>=23.0.0
+flake8>=6.0.0
+mypy>=1.5.0
+
+# TensorRT (manual installation required on Windows)
+# Install manually: pip install /c/TensorRT-10.12.0.36/python/tensorrt_lean-10.12.0.36-cp312-none-win_amd64.whl
