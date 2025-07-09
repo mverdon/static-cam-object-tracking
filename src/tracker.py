@@ -24,9 +24,18 @@ class Track:
         self.confidence = confidence
         self.age = 0
         self.disappeared = 0
-        self.positions = deque(maxlen=30)  # Store last 30 positions for trajectory
+
+        # Use longer trajectory for horses
+        max_positions = config.TRAJECTORY_LENGTH if class_id == config.HORSE_CLASS_ID else 30
+        self.positions = deque(maxlen=max_positions)
+
         self.center = self._get_center(bbox)
         self.positions.append(self.center)
+
+        # Movement analysis for horses
+        self.velocity = (0.0, 0.0)  # (vx, vy)
+        self.speed = 0.0
+        self.direction = 0.0  # angle in degrees
 
     def _get_center(self, bbox: Tuple[float, float, float, float]) -> Tuple[float, float]:
         """Get the center point of a bounding box."""
@@ -37,7 +46,19 @@ class Track:
         """Update track with new detection."""
         self.bbox = bbox
         self.confidence = confidence
-        self.center = self._get_center(bbox)
+
+        new_center = self._get_center(bbox)
+
+        # Calculate movement for horses
+        if self.class_id == config.HORSE_CLASS_ID and len(self.positions) > 0:
+            old_center = self.positions[-1]
+            self.velocity = (new_center[0] - old_center[0], new_center[1] - old_center[1])
+            self.speed = math.sqrt(self.velocity[0]**2 + self.velocity[1]**2)
+
+            if self.speed > 0:
+                self.direction = math.degrees(math.atan2(self.velocity[1], self.velocity[0]))
+
+        self.center = new_center
         self.positions.append(self.center)
         self.age += 1
         self.disappeared = 0
@@ -46,6 +67,25 @@ class Track:
         """Mark track as disappeared for one frame."""
         self.disappeared += 1
         self.age += 1
+
+    def get_smoothed_center(self, window_size: int = 5) -> Tuple[float, float]:
+        """Get smoothed center position using moving average (for horses)."""
+        if len(self.positions) < window_size:
+            return self.center
+
+        recent_positions = list(self.positions)[-window_size:]
+        avg_x = sum(pos[0] for pos in recent_positions) / len(recent_positions)
+        avg_y = sum(pos[1] for pos in recent_positions) / len(recent_positions)
+        return (avg_x, avg_y)
+
+    def get_movement_info(self) -> Dict[str, float]:
+        """Get movement information for analysis."""
+        return {
+            'speed': self.speed,
+            'direction': self.direction,
+            'velocity_x': self.velocity[0],
+            'velocity_y': self.velocity[1]
+        }
 
 
 class ObjectTracker:

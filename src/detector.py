@@ -189,6 +189,26 @@ class YOLODetector:
                         confidence = boxes.conf[i].cpu().numpy()
                         class_id = int(boxes.cls[i].cpu().numpy())
 
+                        # Filter by class if specified
+                        if config.FILTER_CLASSES and class_id not in config.FILTER_CLASSES:
+                            continue
+
+                        # Additional filtering for horses
+                        if class_id == config.HORSE_CLASS_ID:
+                            # Check confidence threshold for horses
+                            if confidence < config.HORSE_MIN_CONFIDENCE:
+                                continue
+
+                            # Check size constraints for horses
+                            width = x2 - x1
+                            height = y2 - y1
+                            area = width * height
+
+                            if area < config.HORSE_MIN_AREA or area > config.HORSE_MAX_AREA:
+                                logger.debug(f"Filtered horse detection - area {area:.0f} outside range "
+                                           f"[{config.HORSE_MIN_AREA}, {config.HORSE_MAX_AREA}]")
+                                continue
+
                         detections.append((class_id, float(confidence), float(x1), float(y1), float(x2), float(y2)))
 
             return detections
