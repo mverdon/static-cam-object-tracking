@@ -56,6 +56,7 @@ videos/*.mkv
 videos/*.wmv
 videos/*.flv
 videos/*.webm
+videos/*.png
 !videos/.gitkeep
 outputs/*.mp4
 outputs/*.avi
