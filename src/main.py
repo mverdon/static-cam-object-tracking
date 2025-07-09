@@ -7,6 +7,7 @@ import logging
 import time
 from pathlib import Path
 import cv2
+import numpy as np
 
 from src import YOLODetector, ObjectTracker, setup_logging, print_system_info
 from src import config
@@ -85,6 +86,18 @@ def parse_arguments():
     )
 
     parser.add_argument(
+        '--no-mask',
+        action='store_true',
+        help='Disable mask detection and application'
+    )
+
+    parser.add_argument(
+        '--show-mask',
+        action='store_true',
+        help='Show mask overlay on output video'
+    )
+
+    parser.add_argument(
         '--list-videos',
         action='store_true',
         help='List available videos in the videos directory'
@@ -133,6 +146,20 @@ def process_video(input_path: str, output_path: str, args):
     video_info = get_video_info(input_path)
     logger.info(f"Processing video: {input_path}")
     logger.info(f"Video info: {video_info}")
+
+    # Load mask if available and masking is enabled
+    mask = None
+    if config.USE_MASK and not args.no_mask:
+        from src.utils import load_video_mask
+        mask = load_video_mask(input_path)
+        if mask is not None:
+            logger.info(f"Mask loaded successfully - shape: {mask.shape}")
+        else:
+            logger.info("No mask found")
+    elif args.no_mask:
+        logger.info("Masking disabled via command line argument")
+    else:
+        logger.info("Masking disabled in configuration")
 
     # Initialize detector
     logger.info("Initializing YOLOv11 detector...")
@@ -192,8 +219,8 @@ def process_video(input_path: str, output_path: str, args):
             if config.RESIZE_WIDTH or config.RESIZE_HEIGHT:
                 frame = resize_frame(frame, config.RESIZE_WIDTH, config.RESIZE_HEIGHT)
 
-            # Detect objects
-            detections = detector.detect(frame)
+            # Detect objects (with mask if available)
+            detections = detector.detect(frame, mask)
 
             # Update tracker
             tracks = tracker.update(detections)
@@ -201,8 +228,22 @@ def process_video(input_path: str, output_path: str, args):
             # Draw tracking results
             output_frame = draw_tracks(frame, tracks, class_names)
 
+            # Add mask overlay if enabled
+            if mask is not None and (config.SHOW_MASK_OVERLAY or args.show_mask):
+                # Resize mask to match output frame if needed
+                if mask.shape[:2] != output_frame.shape[:2]:
+                    display_mask = cv2.resize(mask, (output_frame.shape[1], output_frame.shape[0]))
+                else:
+                    display_mask = mask
+
+                # Create colored mask overlay (semi-transparent red for masked-out areas)
+                mask_overlay = np.zeros_like(output_frame)
+                mask_overlay[:, :, 2] = (255 - display_mask)  # Red channel where mask is 0 (masked areas)
+                output_frame = cv2.addWeighted(output_frame, 0.8, mask_overlay, 0.2, 0)
+
             # Add frame info
-            info_text = f"Frame: {processed_frames} | Tracks: {len(tracker.get_active_tracks())}"
+            mask_info = f" | Mask: {'Yes' if mask is not None else 'No'}"
+            info_text = f"Frame: {processed_frames} | Tracks: {len(tracker.get_active_tracks())}{mask_info}"
             cv2.putText(
                 output_frame, info_text, (10, 30),
                 cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2

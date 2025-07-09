@@ -17,7 +17,7 @@ OUTPUTS_DIR.mkdir(exist_ok=True)
 MODELS_DIR.mkdir(exist_ok=True)
 
 # YOLOv11 model configuration
-YOLO_MODEL = "yolo11n.pt"  # Options: yolo11n.pt, yolo11s.pt, yolo11m.pt, yolo11l.pt, yolo11x.pt
+YOLO_MODEL = "yolo11s.pt"  # Options: yolo11n.pt, yolo11s.pt, yolo11m.pt, yolo11l.pt, yolo11x.pt
 CONFIDENCE_THRESHOLD = 0.5
 IOU_THRESHOLD = 0.45
 
@@ -37,6 +37,11 @@ USE_CUDA = True
 USE_TENSORRT = True
 TENSORRT_PRECISION = "fp16"  # Options: fp32, fp16, int8
 CUDA_DEVICE = 0  # GPU device index to use (0, 1, 2, etc.)
+
+# Masking configuration
+USE_MASK = True  # Enable automatic mask detection and application
+APPLY_MASK_TO_FRAME = True  # Apply mask to frame before detection (recommended)
+SHOW_MASK_OVERLAY = False  # Show mask overlay on output video
 
 # Output configuration
 OUTPUT_FORMAT = "mp4"

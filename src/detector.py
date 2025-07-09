@@ -138,21 +138,28 @@ class YOLODetector:
             logger.warning(f"TensorRT optimization failed: {e}. Continuing with standard model.")
             self.use_tensorrt = False
 
-    def detect(self, frame: np.ndarray) -> List[Tuple[int, float, float, float, float, float]]:
+    def detect(self, frame: np.ndarray, mask: Optional[np.ndarray] = None) -> List[Tuple[int, float, float, float, float, float]]:
         """
         Perform object detection on a frame.
 
         Args:
             frame: Input frame as numpy array (BGR format)
+            mask: Optional binary mask to filter detections (0 = mask out, 255 = keep)
 
         Returns:
             List of detections as tuples: (class_id, confidence, x1, y1, x2, y2)
         """
         try:
+            # Apply mask to frame if provided
+            inference_frame = frame
+            if mask is not None:
+                from .utils import apply_mask_to_frame
+                inference_frame = apply_mask_to_frame(frame, mask)
+
             # For TensorRT engines, specify device in predict call
             if self.is_tensorrt_engine and self.use_cuda:
                 results = self.model(
-                    frame,
+                    inference_frame,
                     conf=self.confidence,
                     iou=self.iou_threshold,
                     device=self.cuda_device,
@@ -161,7 +168,7 @@ class YOLODetector:
             else:
                 # Run inference
                 results = self.model(
-                    frame,
+                    inference_frame,
                     conf=self.confidence,
                     iou=self.iou_threshold,
                     verbose=False

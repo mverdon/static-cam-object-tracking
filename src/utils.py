@@ -271,3 +271,68 @@ def print_system_info():
     # OpenCV information
     print(f"OpenCV version: {cv2.__version__}")
     print()
+
+
+def load_video_mask(video_path: str) -> Optional[np.ndarray]:
+    """
+    Load mask image for a video file.
+
+    Args:
+        video_path: Path to the video file
+
+    Returns:
+        Mask array (binary, 0-255) or None if no mask found
+    """
+    try:
+        video_path_obj = Path(video_path)
+        mask_path = video_path_obj.parent / f"{video_path_obj.stem}_mask.png"
+
+        if not mask_path.exists():
+            logger.info(f"No mask file found: {mask_path}")
+            return None
+
+        # Load mask as grayscale
+        mask = cv2.imread(str(mask_path), cv2.IMREAD_GRAYSCALE)
+        if mask is None:
+            logger.warning(f"Failed to load mask file: {mask_path}")
+            return None
+
+        # Normalize to binary (0 or 255)
+        # Black/transparent areas (≤127) are masked out (0)
+        # White areas (>127) are valid detection areas (255)
+        mask = np.where(mask < 127, 0, 255).astype(np.uint8)
+        logger.info(f"Loaded mask: {mask_path} (shape: {mask.shape}, range: {mask.min()}-{mask.max()})")
+        return mask
+
+    except Exception as e:
+        logger.error(f"Error loading mask for {video_path}: {e}")
+        return None
+
+
+def apply_mask_to_frame(frame: np.ndarray, mask: np.ndarray) -> np.ndarray:
+    """
+    Apply mask to frame, setting masked areas to black.
+
+    Args:
+        frame: Input frame (BGR)
+        mask: Binary mask (0 = mask out, 255 = keep)
+
+    Returns:
+        Masked frame
+    """
+    try:
+        # Resize mask to match frame if needed
+        if mask.shape[:2] != frame.shape[:2]:
+            mask = cv2.resize(mask, (frame.shape[1], frame.shape[0]))
+
+        # Convert mask to 3-channel for broadcasting
+        mask_3ch = cv2.cvtColor(mask, cv2.COLOR_GRAY2BGR)
+
+        # Apply mask (keep areas where mask is white/255)
+        masked_frame = cv2.bitwise_and(frame, mask_3ch)
+
+        return masked_frame
+
+    except Exception as e:
+        logger.error(f"Error applying mask to frame: {e}")
+        return frame
