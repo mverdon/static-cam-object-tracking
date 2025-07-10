@@ -343,8 +343,7 @@ def process_video(input_path: str, output_path: str, args):
                 output_frame = cv2.addWeighted(output_frame, 0.8, mask_overlay, 0.2, 0)
 
             # Add frame info
-            mask_info = f" | Mask: {'Yes' if mask is not None else 'No'}"
-            info_text = f"Frame: {processed_frames} | Tracks: {len(tracks)} | Tracker: {args.tracker.upper()}{mask_info}"
+            info_text = f"Frame: {processed_frames} | Tracks: {len(tracks)}"
             cv2.putText(
                 output_frame, info_text, (10, 30),
                 cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2
