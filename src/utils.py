@@ -99,7 +99,7 @@ def create_video_writer(output_path: str, fps: float, width: int, height: int) -
     Returns:
         OpenCV VideoWriter object
     """
-    fourcc = cv2.VideoWriter_fourcc(*config.OUTPUT_CODEC) # type: ignore
+    fourcc = cv2.VideoWriter.fourcc(*config.OUTPUT_CODEC)
     writer = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
 
     if not writer.isOpened():

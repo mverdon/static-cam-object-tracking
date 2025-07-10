@@ -79,7 +79,7 @@ SHOW_MASK_OVERLAY = False  # Show mask overlay on output video
 
 # Output configuration
 OUTPUT_FORMAT = "mp4"
-OUTPUT_CODEC = "mp4v"
+OUTPUT_CODEC = "h264"
 SHOW_CONFIDENCE = True
 SHOW_TRACK_ID = True
 SHOW_CLASS_NAME = True
