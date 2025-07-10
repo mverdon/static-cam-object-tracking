@@ -114,6 +114,9 @@ python src/main.py --input videos/test.mp4 --model yolo11x.pt
 # Use BotsSort tracker instead of ByteTrack
 python src/main.py --input videos/test.mp4 --tracker botsort
 
+# Custom output FPS (e.g., for slow motion or time-lapse)
+python src/main.py --input videos/test.mp4 --fps 15
+
 # Lower confidence threshold for more detections
 python src/main.py --input videos/test.mp4 --confidence 0.3
 

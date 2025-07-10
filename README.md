@@ -55,13 +55,14 @@ python src/main.py --input videos/your_video.mp4 --output outputs/tracked_video.
 
 - `--tracker`: Choose tracking algorithm (`bytetrack` or `botsort`)
 - `--confidence`: Set detection confidence threshold
+- `--fps`: Override output video FPS (default: uses input video FPS)
 - `--display`: Show video during processing
 - `--no-cuda`: Disable CUDA acceleration
 - `--no-tensorrt`: Disable TensorRT optimization
 
-Example with different tracker:
+Example with different tracker and custom FPS:
 ```bash
-python src/main.py --input videos/your_video.mp4 --tracker botsort --display
+python src/main.py --input videos/your_video.mp4 --tracker botsort --fps 30 --display
 ```
 
 ## Project Structure

@@ -28,10 +28,10 @@ TRACKER_TYPE = "bytetrack"  # Options: bytetrack, botsort
 # These map to the YOLO tracker YAML parameters
 YOLO_TRACKER_CONFIG = {
     "bytetrack": {
-        "track_high_thresh": 0.5,   # threshold for the first association
-        "track_low_thresh": 0.1,    # threshold for the second association
-        "new_track_thresh": 0.6,    # threshold for init new track
-        "track_buffer": 30,         # buffer to calculate the time when to remove tracks
+        "track_high_thresh": 0.25,   # threshold for the first association
+        "track_low_thresh": 0.05,    # threshold for the second association
+        "new_track_thresh": 0.25,    # threshold for init new track
+        "track_buffer": 300,         # buffer to calculate the time when to remove tracks
         "match_thresh": 0.8,        # threshold for matching tracks
         "fuse_score": True,         # Whether to fuse confidence scores with the iou distances
     },
@@ -57,7 +57,7 @@ TRAJECTORY_LENGTH = 50
 MOVEMENT_SMOOTHING = True
 
 # Video processing configuration
-TARGET_FPS = 30
+TARGET_FPS = None  # Set to None to use original video FPS, or specify a number to override (can also use --fps argument)
 FRAME_SKIP = 1  # Process every nth frame
 RESIZE_WIDTH = 1280  # Set to None to keep original size
 RESIZE_HEIGHT = 720  # Set to None to keep original size

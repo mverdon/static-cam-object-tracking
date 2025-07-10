@@ -184,6 +184,12 @@ def parse_arguments():
     )
 
     parser.add_argument(
+        '--fps',
+        type=float,
+        help='Override output video FPS (default: uses input video FPS)'
+    )
+
+    parser.add_argument(
         '--tracker', '-t',
         type=str,
         choices=['bytetrack', 'botsort'],
@@ -281,7 +287,9 @@ def process_video(input_path: str, output_path: str, args):
     # Determine output dimensions
     output_width = config.RESIZE_WIDTH or video_info['width']
     output_height = config.RESIZE_HEIGHT or video_info['height']
-    output_fps = config.TARGET_FPS or video_info['fps']
+    output_fps = args.fps or config.TARGET_FPS or video_info['fps']
+
+    logger.info(f"Output video settings: {output_width}x{output_height} @ {output_fps} FPS")
 
     # Create video writer
     writer = create_video_writer(output_path, output_fps, output_width, output_height)

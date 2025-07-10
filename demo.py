@@ -46,6 +46,7 @@ def main():
     print("   python src/main.py --list-videos    # List all available videos")
     print("   python src/main.py --help           # Show all options")
     print("   python src/main.py --tracker botsort # Use BotsSort instead of ByteTrack")
+    print("   python src/main.py --fps 30          # Set custom output FPS")
 
     print(f"\n📊 Current configuration:")
     print(f"   Model: {config.YOLO_MODEL}")
