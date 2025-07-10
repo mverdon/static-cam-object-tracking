@@ -25,14 +25,14 @@ class Track:
         self.age = 0
         self.disappeared = 0
 
-        # Use longer trajectory for horses
-        max_positions = config.TRAJECTORY_LENGTH if class_id == config.HORSE_CLASS_ID else 30
+        # Use longer trajectory for objects
+        max_positions = config.TRAJECTORY_LENGTH if class_id == config.OBJECT_CLASS_ID else 30
         self.positions = deque(maxlen=max_positions)
 
         self.center = self._get_center(bbox)
         self.positions.append(self.center)
 
-        # Movement analysis for horses
+        # Movement analysis for objects
         self.velocity = (0.0, 0.0)  # (vx, vy)
         self.speed = 0.0
         self.direction = 0.0  # angle in degrees
@@ -49,8 +49,8 @@ class Track:
 
         new_center = self._get_center(bbox)
 
-        # Calculate movement for horses
-        if self.class_id == config.HORSE_CLASS_ID and len(self.positions) > 0:
+        # Calculate movement for objects
+        if self.class_id == config.OBJECT_CLASS_ID and len(self.positions) > 0:
             old_center = self.positions[-1]
             self.velocity = (new_center[0] - old_center[0], new_center[1] - old_center[1])
             self.speed = math.sqrt(self.velocity[0]**2 + self.velocity[1]**2)
@@ -69,7 +69,7 @@ class Track:
         self.age += 1
 
     def get_smoothed_center(self, window_size: int = 5) -> Tuple[float, float]:
-        """Get smoothed center position using moving average (for horses)."""
+        """Get smoothed center position using moving average (for objects)."""
         if len(self.positions) < window_size:
             return self.center
 

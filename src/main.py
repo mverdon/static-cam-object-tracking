@@ -98,16 +98,16 @@ def parse_arguments():
     )
 
     parser.add_argument(
-        '--horses-only',
+        '--specified-only',
         action='store_true',
-        help='Detect and track horses only (class 17)'
+        help='Detect and track specified objects only'
     )
 
     parser.add_argument(
-        '--horse-confidence',
+        '--object-confidence',
         type=float,
-        default=config.HORSE_MIN_CONFIDENCE,
-        help=f'Minimum confidence for horse detections (default: {config.HORSE_MIN_CONFIDENCE})'
+        default=config.OBJECT_MIN_CONFIDENCE,
+        help=f'Minimum confidence for object detections (default: {config.OBJECT_MIN_CONFIDENCE})'
     )
 
     parser.add_argument(
@@ -235,9 +235,9 @@ def process_video(input_path: str, output_path: str, args):
             # Detect objects (with mask if available)
             detections = detector.detect(frame, mask)
 
-            # Filter detections for horses only if requested (format: class_id, confidence, x1, y1, x2, y2)
-            if args.horses_only:
-                detections = [d for d in detections if d[0] == 17]
+            # Filter detections for specified objects only if requested (format: class_id, confidence, x1, y1, x2, y2)
+            if args.specified_only:
+                detections = [d for d in detections if d[0] == config.OBJECT_CLASS_ID]
 
             # Update tracker
             tracks = tracker.update(detections)

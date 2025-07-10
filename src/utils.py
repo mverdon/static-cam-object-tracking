@@ -101,8 +101,8 @@ def draw_tracks(frame: np.ndarray, tracks: List[Track], class_names: dict) -> np
         if config.SHOW_CONFIDENCE:
             label_parts.append(f"{confidence:.2f}")
 
-        # Add horse-specific information
-        if class_id == config.HORSE_CLASS_ID and hasattr(track, 'speed'):
+        # Add object-specific information
+        if class_id == config.OBJECT_CLASS_ID and hasattr(track, 'speed'):
             label_parts.append(f"Speed:{track.speed:.1f}")
 
         label = " ".join(label_parts)
@@ -135,15 +135,15 @@ def draw_tracks(frame: np.ndarray, tracks: List[Track], class_names: dict) -> np
         if len(track.positions) > 1:
             points = [(int(x), int(y)) for x, y in track.positions]
 
-            # For horses, use smoothed trajectory if enabled
-            if class_id == config.HORSE_CLASS_ID and config.MOVEMENT_SMOOTHING and hasattr(track, 'get_smoothed_center'):
-                # Draw thicker trajectory for horses
+            # For objects, use smoothed trajectory if enabled
+            if class_id == config.OBJECT_CLASS_ID and config.MOVEMENT_SMOOTHING and hasattr(track, 'get_smoothed_center'):
+                # Draw thicker trajectory for objects
                 for i in range(1, len(points)):
                     alpha = i / len(points)
-                    thickness = max(2, int(3 * alpha))  # Thicker for horses
+                    thickness = max(2, int(3 * alpha))  # Thicker for objects
                     cv2.line(output_frame, points[i-1], points[i], color, thickness)
 
-                # Draw direction arrow for horses
+                # Draw direction arrow for objects
                 if hasattr(track, 'velocity') and track.speed > 5:  # Only if moving
                     center = (int(track.center[0]), int(track.center[1]))
                     arrow_length = min(50, track.speed * 2)

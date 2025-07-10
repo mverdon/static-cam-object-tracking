@@ -193,20 +193,20 @@ class YOLODetector:
                         if config.FILTER_CLASSES and class_id not in config.FILTER_CLASSES:
                             continue
 
-                        # Additional filtering for horses
-                        if class_id == config.HORSE_CLASS_ID:
-                            # Check confidence threshold for horses
-                            if confidence < config.HORSE_MIN_CONFIDENCE:
+                        # Additional filtering for objects
+                        if class_id == config.OBJECT_CLASS_ID:
+                            # Check confidence threshold for objects
+                            if confidence < config.OBJECT_MIN_CONFIDENCE:
                                 continue
 
-                            # Check size constraints for horses
+                            # Check size constraints for objects
                             width = x2 - x1
                             height = y2 - y1
                             area = width * height
 
-                            if area < config.HORSE_MIN_AREA or area > config.HORSE_MAX_AREA:
-                                logger.debug(f"Filtered horse detection - area {area:.0f} outside range "
-                                           f"[{config.HORSE_MIN_AREA}, {config.HORSE_MAX_AREA}]")
+                            if area < config.OBJECT_MIN_AREA or area > config.OBJECT_MAX_AREA:
+                                logger.debug(f"Filtered object detection - area {area:.0f} outside range "
+                                           f"[{config.OBJECT_MIN_AREA}, {config.OBJECT_MAX_AREA}]")
                                 continue
 
                         detections.append((class_id, float(confidence), float(x1), float(y1), float(x2), float(y2)))
