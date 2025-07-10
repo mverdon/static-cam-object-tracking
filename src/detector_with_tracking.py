@@ -176,13 +176,16 @@ class YOLODetectorWithTracking:
                 },
                 ...
             ]
-        """
-        # Apply mask if provided
+        """        # Apply mask if provided
         if mask is not None:
             if config.APPLY_MASK_TO_FRAME:
                 # Resize mask to match frame dimensions if needed
                 if mask.shape[:2] != frame.shape[:2]:
                     mask = cv2.resize(mask, (frame.shape[1], frame.shape[0]))
+
+                # Ensure mask is 2D (height, width) for proper broadcasting
+                if len(mask.shape) == 3 and mask.shape[2] == 1:
+                    mask = mask[:, :, 0]
 
                 # Apply mask to frame before detection
                 frame = np.where(mask[..., None] == 0, 0, frame)

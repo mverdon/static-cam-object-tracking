@@ -59,8 +59,8 @@ MOVEMENT_SMOOTHING = True
 # Video processing configuration
 TARGET_FPS = None  # Set to None to use original video FPS, or specify a number to override (can also use --fps argument)
 FRAME_SKIP = 1  # Process every nth frame
-RESIZE_WIDTH = 1280  # Set to None to keep original size
-RESIZE_HEIGHT = 720  # Set to None to keep original size
+RESIZE_WIDTH = None  # Set to None to keep original size
+RESIZE_HEIGHT = None  # Set to None to keep original size
 
 # Hardware acceleration
 USE_CUDA = True
