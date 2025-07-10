@@ -23,8 +23,31 @@ IOU_THRESHOLD = 0.45
 
 # Tracking configuration
 TRACKER_TYPE = "bytetrack"  # Options: bytetrack, botsort
-MAX_DISAPPEARED = 50
-MAX_DISTANCE = 200
+
+# YOLO Built-in Tracker Configuration
+# These map to the YOLO tracker YAML parameters
+YOLO_TRACKER_CONFIG = {
+    "bytetrack": {
+        "track_high_thresh": 0.5,   # threshold for the first association
+        "track_low_thresh": 0.1,    # threshold for the second association
+        "new_track_thresh": 0.6,    # threshold for init new track
+        "track_buffer": 30,         # buffer to calculate the time when to remove tracks
+        "match_thresh": 0.8,        # threshold for matching tracks
+        "fuse_score": True,         # Whether to fuse confidence scores with the iou distances
+    },
+    "botsort": {
+        "track_high_thresh": 0.5,
+        "track_low_thresh": 0.1,
+        "new_track_thresh": 0.6,
+        "track_buffer": 30,
+        "match_thresh": 0.8,
+        "fuse_score": True,
+        "gmc_method": "sparseOptFlow",
+        "proximity_thresh": 0.5,
+        "appearance_thresh": 0.8,
+        "with_reid": False,
+    }
+}
 
 # Object-specific tracking configuration
 OBJECT_MIN_AREA = 1000

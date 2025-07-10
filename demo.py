@@ -1,5 +1,15 @@
 """
-Simple demo script to test the object tracking system.
+Simple demo script to test the    print("📋 Other useful commands:")
+    print("   python src/main.py --list-videos    # List all available videos")
+    print("   python src/main.py --help           # Show all options")
+    print("   python src/main.py --tracker botsort # Use BotsSort instead of ByteTrack")
+
+    print(f"\n📊 Current configuration:")
+    print(f"   Model: {config.YOLO_MODEL}")
+    print(f"   Confidence threshold: {config.CONFIDENCE_THRESHOLD}")
+    print(f"   Tracker: {config.TRACKER_TYPE}")
+    print(f"   CUDA enabled: {config.USE_CUDA}")
+    print(f"   TensorRT enabled: {config.USE_TENSORRT}")racking system.
 """
 
 import sys
@@ -35,10 +45,12 @@ def main():
     print("\n📋 Other useful commands:")
     print("   python src/main.py --list-videos    # List all available videos")
     print("   python src/main.py --help           # Show all options")
+    print("   python src/main.py --tracker botsort # Use BotsSort instead of ByteTrack")
 
     print(f"\n📊 Current configuration:")
     print(f"   Model: {config.YOLO_MODEL}")
     print(f"   Confidence threshold: {config.CONFIDENCE_THRESHOLD}")
+    print(f"   Tracker: {config.TRACKER_TYPE}")
     print(f"   CUDA enabled: {config.USE_CUDA}")
     print(f"   TensorRT enabled: {config.USE_TENSORRT}")
 

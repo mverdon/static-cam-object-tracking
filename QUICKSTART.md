@@ -50,6 +50,9 @@ python src/main.py --input videos/my_video.mp4 --display
 # Custom output location
 python src/main.py --input videos/my_video.mp4 --output outputs/result.mp4
 
+# Use different tracker
+python src/main.py --input videos/my_video.mp4 --tracker botsort
+
 # List available videos
 python src/main.py --list-videos
 ```
@@ -59,6 +62,7 @@ python src/main.py --list-videos
 Edit `src/config.py` to customize:
 
 - **Model**: Change YOLO model size (n/s/m/l/x)
+- **Tracker**: Choose between ByteTrack and BotsSort
 - **Thresholds**: Adjust confidence and IoU thresholds
 - **Hardware**: Enable/disable CUDA and TensorRT
 - **Output**: Modify video quality and display options
@@ -106,6 +110,9 @@ python src/main.py --input videos/test.mp4 --model yolo11n.pt
 
 # High accuracy with extra large model
 python src/main.py --input videos/test.mp4 --model yolo11x.pt
+
+# Use BotsSort tracker instead of ByteTrack
+python src/main.py --input videos/test.mp4 --tracker botsort
 
 # Lower confidence threshold for more detections
 python src/main.py --input videos/test.mp4 --confidence 0.3

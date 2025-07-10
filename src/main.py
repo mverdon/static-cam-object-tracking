@@ -9,18 +9,91 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-from src import YOLODetector, ObjectTracker, setup_logging, print_system_info
+from src.detector_with_tracking import YOLODetectorWithTracking
 from src import config
 from src.utils import (
     get_video_info,
     create_video_writer,
     resize_frame,
-    draw_tracks,
     validate_video_file,
-    get_available_video_files
+    get_available_video_files,
+    setup_logging,
+    print_system_info
 )
 
 logger = logging.getLogger(__name__)
+
+
+def draw_yolo_tracks(frame: np.ndarray, tracks: list, show_info: bool = True) -> np.ndarray:
+    """
+    Draw YOLO tracks on frame.
+
+    Args:
+        frame: Input frame
+        tracks: List of track dictionaries
+        show_info: Whether to show track information
+
+    Returns:
+        Frame with tracks drawn
+    """
+    output_frame = frame.copy()
+
+    for track in tracks:
+        track_id = track['track_id']
+        class_id = track['class_id']
+        confidence = track['confidence']
+        bbox = track['bbox']
+        class_name = track['class_name']
+
+        # Get coordinates
+        x1, y1, x2, y2 = map(int, bbox)
+
+        # Get color
+        color = config.CLASS_COLORS.get(class_id, config.DEFAULT_COLOR)
+
+        # Draw bounding box
+        cv2.rectangle(output_frame, (x1, y1), (x2, y2), color, 2)
+
+        # Draw label
+        if show_info:
+            label_parts = []
+
+            if config.SHOW_TRACK_ID:
+                label_parts.append(f"ID:{track_id}")
+
+            if config.SHOW_CLASS_NAME:
+                label_parts.append(class_name)
+
+            if config.SHOW_CONFIDENCE:
+                label_parts.append(f"{confidence:.2f}")
+
+            label = " ".join(label_parts)
+
+            if label:
+                # Draw label background
+                (label_width, label_height), baseline = cv2.getTextSize(
+                    label, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1
+                )
+                cv2.rectangle(
+                    output_frame,
+                    (x1, y1 - label_height - baseline - 5),
+                    (x1 + label_width, y1),
+                    color,
+                    -1
+                )
+
+                # Draw label text
+                cv2.putText(
+                    output_frame,
+                    label,
+                    (x1, y1 - baseline - 2),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.5,
+                    (255, 255, 255),
+                    1
+                )
+
+    return output_frame
 
 
 def parse_arguments():
@@ -111,6 +184,14 @@ def parse_arguments():
     )
 
     parser.add_argument(
+        '--tracker', '-t',
+        type=str,
+        choices=['bytetrack', 'botsort'],
+        default=config.TRACKER_TYPE,
+        help=f'Tracker type to use (default: {config.TRACKER_TYPE})'
+    )
+
+    parser.add_argument(
         '--list-videos',
         action='store_true',
         help='List available videos in the videos directory'
@@ -174,15 +255,16 @@ def process_video(input_path: str, output_path: str, args):
     else:
         logger.info("Masking disabled in configuration")
 
-    # Initialize detector
-    logger.info("Initializing YOLOv11 detector...")
-    detector = YOLODetector(
+    # Initialize detector with built-in tracking
+    logger.info("Initializing YOLOv11 detector with built-in tracking...")
+    detector = YOLODetectorWithTracking(
         model_path=args.model,
         confidence=args.confidence,
         iou_threshold=args.iou,
         use_cuda=not args.no_cuda,
         use_tensorrt=not args.no_tensorrt,
-        cuda_device=args.cuda_device
+        cuda_device=args.cuda_device,
+        tracker_type=args.tracker
     )
 
     # Warm up the detector
@@ -191,10 +273,7 @@ def process_video(input_path: str, output_path: str, args):
     # Get class names
     class_names = detector.get_class_names()
     logger.info(f"Loaded {len(class_names)} object classes")
-
-    # Initialize tracker
-    logger.info("Initializing object tracker...")
-    tracker = ObjectTracker()
+    logger.info(f"Using {args.tracker} tracker")
 
     # Open video capture
     cap = cv2.VideoCapture(input_path)
@@ -232,18 +311,15 @@ def process_video(input_path: str, output_path: str, args):
             if config.RESIZE_WIDTH or config.RESIZE_HEIGHT:
                 frame = resize_frame(frame, config.RESIZE_WIDTH, config.RESIZE_HEIGHT)
 
-            # Detect objects (with mask if available)
-            detections = detector.detect(frame, mask)
+            # Detect and track objects (with mask if available)
+            tracks = detector.detect_and_track(frame, mask)
 
-            # Filter detections for specified objects only if requested (format: class_id, confidence, x1, y1, x2, y2)
+            # Filter tracks for specified objects only if requested
             if args.specified_only:
-                detections = [d for d in detections if d[0] == config.OBJECT_CLASS_ID]
-
-            # Update tracker
-            tracks = tracker.update(detections)
+                tracks = [t for t in tracks if t['class_id'] == config.OBJECT_CLASS_ID]
 
             # Draw tracking results
-            output_frame = draw_tracks(frame, tracks, class_names)
+            output_frame = draw_yolo_tracks(frame, tracks)
 
             # Add mask overlay if enabled
             if mask is not None and (config.SHOW_MASK_OVERLAY or args.show_mask):
@@ -260,7 +336,7 @@ def process_video(input_path: str, output_path: str, args):
 
             # Add frame info
             mask_info = f" | Mask: {'Yes' if mask is not None else 'No'}"
-            info_text = f"Frame: {processed_frames} | Tracks: {len(tracker.get_active_tracks())}{mask_info}"
+            info_text = f"Frame: {processed_frames} | Tracks: {len(tracks)} | Tracker: {args.tracker.upper()}{mask_info}"
             cv2.putText(
                 output_frame, info_text, (10, 30),
                 cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2
@@ -280,7 +356,7 @@ def process_video(input_path: str, output_path: str, args):
                 elapsed = time.time() - start_time
                 fps = processed_frames / elapsed
                 progress = frame_count / video_info['frame_count'] * 100
-                logger.info(f"Progress: {progress:.1f}% | FPS: {fps:.1f} | Tracks: {len(tracker.get_active_tracks())}")
+                logger.info(f"Progress: {progress:.1f}% | FPS: {fps:.1f} | Tracks: {len(tracks)}")
 
     finally:
         # Cleanup

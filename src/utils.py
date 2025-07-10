@@ -11,7 +11,6 @@ from pathlib import Path
 import torch
 
 from . import config
-from .tracker import Track
 
 logger = logging.getLogger(__name__)
 
@@ -58,106 +57,6 @@ def resize_frame(frame: np.ndarray, width: Optional[int] = None, height: Optiona
         aspect_ratio = w / h
         new_width = int(height * aspect_ratio)
         return cv2.resize(frame, (new_width, height)) # type: ignore
-
-
-def draw_tracks(frame: np.ndarray, tracks: List[Track], class_names: dict) -> np.ndarray:
-    """
-    Draw tracking results on the frame.
-
-    Args:
-        frame: Input frame
-        tracks: List of active tracks
-        class_names: Dictionary mapping class IDs to names
-
-    Returns:
-        Frame with tracking visualization
-    """
-    output_frame = frame.copy()
-
-    for track in tracks:
-        if track.disappeared > 0:
-            continue
-
-        x1, y1, x2, y2 = map(int, track.bbox)
-        class_id = track.class_id
-        track_id = track.track_id
-        confidence = track.confidence
-
-        # Get color for this class
-        color = config.CLASS_COLORS.get(class_id, config.DEFAULT_COLOR)
-
-        # Draw bounding box
-        cv2.rectangle(output_frame, (x1, y1), (x2, y2), color, 2)
-
-        # Prepare label text
-        label_parts = []
-
-        if config.SHOW_TRACK_ID:
-            label_parts.append(f"ID:{track_id}")
-
-        if config.SHOW_CLASS_NAME and class_id in class_names:
-            label_parts.append(class_names[class_id])
-
-        if config.SHOW_CONFIDENCE:
-            label_parts.append(f"{confidence:.2f}")
-
-        # Add object-specific information
-        if class_id == config.OBJECT_CLASS_ID and hasattr(track, 'speed'):
-            label_parts.append(f"Speed:{track.speed:.1f}")
-
-        label = " ".join(label_parts)
-
-        # Draw label background
-        if label:
-            (label_width, label_height), baseline = cv2.getTextSize(
-                label, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1
-            )
-            cv2.rectangle(
-                output_frame,
-                (x1, y1 - label_height - baseline - 5),
-                (x1 + label_width, y1),
-                color,
-                -1
-            )
-
-            # Draw label text
-            cv2.putText(
-                output_frame,
-                label,
-                (x1, y1 - baseline - 2),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.5,
-                (255, 255, 255),
-                1
-            )
-
-        # Draw trajectory if available
-        if len(track.positions) > 1:
-            points = [(int(x), int(y)) for x, y in track.positions]
-
-            # For objects, use smoothed trajectory if enabled
-            if class_id == config.OBJECT_CLASS_ID and config.MOVEMENT_SMOOTHING and hasattr(track, 'get_smoothed_center'):
-                # Draw thicker trajectory for objects
-                for i in range(1, len(points)):
-                    alpha = i / len(points)
-                    thickness = max(2, int(3 * alpha))  # Thicker for objects
-                    cv2.line(output_frame, points[i-1], points[i], color, thickness)
-
-                # Draw direction arrow for objects
-                if hasattr(track, 'velocity') and track.speed > 5:  # Only if moving
-                    center = (int(track.center[0]), int(track.center[1]))
-                    arrow_length = min(50, track.speed * 2)
-                    end_x = int(center[0] + arrow_length * math.cos(math.radians(track.direction)))
-                    end_y = int(center[1] + arrow_length * math.sin(math.radians(track.direction)))
-                    cv2.arrowedLine(output_frame, center, (end_x, end_y), color, 2, tipLength=0.3)
-            else:
-                # Standard trajectory for other objects
-                for i in range(1, len(points)):
-                    alpha = i / len(points)
-                    thickness = max(1, int(2 * alpha))
-                    cv2.line(output_frame, points[i-1], points[i], color, thickness)
-
-    return output_frame
 
 
 def get_video_info(video_path: str) -> dict:
