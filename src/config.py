@@ -17,7 +17,7 @@ OUTPUTS_DIR.mkdir(exist_ok=True)
 MODELS_DIR.mkdir(exist_ok=True)
 
 # YOLOv11 model configuration
-YOLO_MODEL = "yolo11s.pt"
+YOLO_MODEL = "yolo11x.pt"
 CONFIDENCE_THRESHOLD = 0.3
 IOU_THRESHOLD = 0.45
 
