@@ -12,6 +12,8 @@ from typing import List, Tuple, Optional, Dict, Any
 import numpy as np
 import tempfile
 import yaml
+import os
+import time
 
 from . import config
 
@@ -122,8 +124,35 @@ class YOLODetectorWithTracking:
                     logger.info(f"Loading existing TensorRT engine: {tensorrt_path}")
                     model = YOLO(str(tensorrt_path))
                     return model
+                else:
+                    # TensorRT engine doesn't exist, need to convert from PyTorch model
+                    logger.info(f"TensorRT engine not found. Converting from PyTorch model...")
 
-            # Load PyTorch model if no TensorRT engine exists
+                    # First load the PyTorch model
+                    model_file = config.MODELS_DIR / model_path
+                    if not model_file.exists():
+                        logger.info(f"Model {model_path} not found locally. Downloading...")
+                        model = YOLO(model_path)  # This will download the model
+                        # Save to models directory
+                        model.save(str(model_file))
+                    else:
+                        model = YOLO(str(model_file))
+
+                    # Move to GPU for conversion
+                    if self.use_cuda:
+                        model.to(f'cuda:{self.cuda_device}')
+                        logger.info(f"Model loaded on CUDA device {self.cuda_device}")
+
+                    # Convert to TensorRT using the improved conversion method
+                    tensorrt_model = self._convert_to_tensorrt(model, model_file, tensorrt_path)
+
+                    if tensorrt_model is not None:
+                        return tensorrt_model
+                    else:
+                        logger.info("Falling back to PyTorch model")
+                        return model
+
+            # Load PyTorch model if TensorRT is disabled or not available
             model_file = config.MODELS_DIR / model_path
             if not model_file.exists():
                 logger.info(f"Model {model_path} not found locally. Downloading...")
@@ -332,6 +361,168 @@ class YOLODetectorWithTracking:
 
         except Exception as e:
             logger.warning(f"Model warm-up failed: {e}")
+
+    def _convert_to_tensorrt(self, model: YOLO, model_file: Path, tensorrt_path: Path) -> Optional[YOLO]:
+        """
+        Convert PyTorch model to TensorRT engine with comprehensive error handling.
+
+        Args:
+            model: Loaded PyTorch YOLO model
+            model_file: Path to the PyTorch model file
+            tensorrt_path: Target path for the TensorRT engine
+
+        Returns:
+            YOLO model with TensorRT engine if successful, None if failed
+        """
+        logger.info(f"Converting PyTorch model to TensorRT engine...")
+        logger.info(f"This may take several minutes on first run...")
+        logger.info(f"Target precision: {config.TENSORRT_PRECISION}")
+
+        try:
+            # Validate TensorRT prerequisites
+            if not self._validate_tensorrt_environment():
+                return None
+
+            # Ensure model is on GPU
+            model.to(f'cuda:{self.cuda_device}')
+
+            # Determine optimization settings
+            precision_settings = {
+                'fp32': {'half': False, 'int8': False},
+                'fp16': {'half': True, 'int8': False},
+                'int8': {'half': False, 'int8': True}
+            }
+
+            precision = config.TENSORRT_PRECISION.lower()
+            if precision not in precision_settings:
+                logger.warning(f"Invalid TensorRT precision '{precision}'. Using fp16.")
+                precision = 'fp16'
+
+            settings = precision_settings[precision]
+
+            # Create export parameters
+            export_params = {
+                'format': 'engine',
+                'half': settings['half'],
+                'int8': settings['int8'],
+                'device': self.cuda_device,
+                'workspace': 4,  # GB
+                'verbose': False,
+                'imgsz': 640,  # Standard YOLO input size
+                'batch': 1,    # Optimize for batch size 1
+                'simplify': True,
+                'opset': 17,   # ONNX opset version
+            }
+
+            # Add INT8 calibration if needed
+            if settings['int8']:
+                logger.info("INT8 quantization enabled - this may take longer but provides better performance")
+                # INT8 quantization will use automatic calibration
+
+            logger.info(f"Export parameters: {export_params}")
+
+            # Perform conversion with timeout
+            conversion_start = time.time()
+
+            # Export to TensorRT format
+            exported_path = model.export(**export_params)
+
+            conversion_time = time.time() - conversion_start
+            logger.info(f"TensorRT conversion completed in {conversion_time:.2f} seconds")
+
+            # Handle the exported file location
+            exported_engine = Path(exported_path) if exported_path else model_file.with_suffix('.engine')
+
+            # Ensure the engine is in the correct location
+            if exported_engine.exists():
+                if exported_engine != tensorrt_path:
+                    # Move to target location
+                    if tensorrt_path.exists():
+                        tensorrt_path.unlink()
+                    exported_engine.rename(tensorrt_path)
+
+                # Validate the created engine
+                if self._validate_tensorrt_engine(tensorrt_path):
+                    logger.info(f"TensorRT engine successfully created: {tensorrt_path}")
+                    logger.info(f"Engine file size: {tensorrt_path.stat().st_size / (1024*1024):.2f} MB")
+
+                    # Load and return the TensorRT model
+                    tensorrt_model = YOLO(str(tensorrt_path))
+                    return tensorrt_model
+                else:
+                    logger.error("TensorRT engine validation failed")
+                    return None
+            else:
+                logger.error("TensorRT engine file was not created")
+                return None
+
+        except Exception as e:
+            logger.error(f"TensorRT conversion failed: {e}")
+            logger.info("This can happen due to:")
+            logger.info("  - Insufficient GPU memory")
+            logger.info("  - Incompatible model architecture")
+            logger.info("  - TensorRT version compatibility issues")
+            logger.info("  - CUDA driver issues")
+            return None
+
+    def _validate_tensorrt_environment(self) -> bool:
+        """Validate that TensorRT environment is properly set up."""
+        try:
+            # Check TensorRT availability
+            import tensorrt as trt
+            logger.info(f"TensorRT version: {trt.__version__}")
+
+            # Check CUDA device properties
+            device_props = torch.cuda.get_device_properties(self.cuda_device)
+            logger.info(f"GPU: {device_props.name}")
+            logger.info(f"GPU Memory: {device_props.total_memory / (1024**3):.1f} GB")
+            logger.info(f"GPU Compute Capability: {device_props.major}.{device_props.minor}")
+
+            # Check minimum memory requirements (at least 2GB for TensorRT conversion)
+            if device_props.total_memory < 2 * (1024**3):
+                logger.warning("GPU has less than 2GB memory - TensorRT conversion may fail")
+                return False
+
+            # Check compute capability (minimum 6.0 for modern TensorRT)
+            compute_capability = device_props.major + device_props.minor * 0.1
+            if compute_capability < 6.0:
+                logger.warning(f"GPU compute capability {compute_capability} may not support TensorRT")
+                return False
+
+            return True
+
+        except ImportError:
+            logger.error("TensorRT not installed or not available")
+            return False
+        except Exception as e:
+            logger.error(f"TensorRT environment validation failed: {e}")
+            return False
+
+    def _validate_tensorrt_engine(self, engine_path: Path) -> bool:
+        """Validate that the TensorRT engine is properly created and loadable."""
+        try:
+            # Check file exists and has reasonable size
+            if not engine_path.exists():
+                logger.error("Engine file does not exist")
+                return False
+
+            file_size = engine_path.stat().st_size
+            if file_size < 1024 * 1024:  # Less than 1MB is suspicious
+                logger.error(f"Engine file too small: {file_size} bytes")
+                return False
+
+            # Try to load the engine with YOLO to verify it's valid
+            try:
+                test_model = YOLO(str(engine_path))
+                logger.info(f"Engine validation successful")
+                return True
+            except Exception as e:
+                logger.error(f"Failed to load TensorRT engine: {e}")
+                return False
+
+        except Exception as e:
+            logger.error(f"Engine validation failed: {e}")
+            return False
 
     def __del__(self):
         """Clean up temporary files."""
