@@ -17,7 +17,6 @@ A real-time object tracking system using YOLOv11 with built-in ByteTrack and Bot
 
 - Python 3.12+
 - NVIDIA GPU with CUDA support
-- TensorRT 10.12.0.36 (Windows)
 - uv package manager
 
 ## Installation
@@ -36,11 +35,6 @@ source .venv/Scripts/activate  # Windows
 3. Install dependencies:
 ```bash
 uv sync
-```
-
-4. Install TensorRT manually:
-```bash
-uv pip install TensorRT-10.12.0.36/python/tensorrt_lean-10.12.0.36-cp312-none-win_amd64.whl
 ```
 
 ## Usage

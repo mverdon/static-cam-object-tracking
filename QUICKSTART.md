@@ -83,12 +83,6 @@ Use Ctrl+Shift+P → "Tasks: Run Task" to access:
 python -c "import torch; print(torch.cuda.is_available())"
 ```
 
-### TensorRT Issues
-Install manually if the automatic installation fails:
-```bash
-uv pip install TensorRT-10.12.0.36/python/tensorrt_lean-10.12.0.36-cp312-none-win_amd64.whl
-```
-
 ### Video Issues
 - Ensure video files are in supported formats (mp4, avi, mov, mkv, etc.)
 - Check video file permissions

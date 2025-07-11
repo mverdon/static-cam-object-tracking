@@ -49,13 +49,6 @@ YOLO_TRACKER_CONFIG = {
     }
 }
 
-# Object-specific tracking configuration
-OBJECT_MIN_AREA = 1000
-OBJECT_MAX_AREA = 50000
-OBJECT_MIN_CONFIDENCE = 0.3
-TRAJECTORY_LENGTH = 50
-MOVEMENT_SMOOTHING = True
-
 # Video processing configuration
 TARGET_FPS = None  # Set to None to use original video FPS, or specify a number to override (can also use --fps argument)
 FRAME_SKIP = 1  # Process every nth frame
@@ -79,7 +72,7 @@ SHOW_MASK_OVERLAY = False  # Show mask overlay on output video
 
 # Output configuration
 OUTPUT_FORMAT = "mp4"
-OUTPUT_CODEC = "avc1"
+OUTPUT_CODEC = "mp4v"
 SHOW_CONFIDENCE = True
 SHOW_TRACK_ID = True
 SHOW_CLASS_NAME = True

@@ -38,18 +38,6 @@ uv pip install torch torchvision torchaudio --index-url https://download.pytorch
 echo "📦 Installing project dependencies..."
 uv sync
 
-# Install TensorRT if the wheel exists
-TENSORRT_WHEEL="/c/TensorRT-10.12.0.36/python/tensorrt_lean-10.12.0.36-cp312-none-win_amd64.whl"
-if [ -f "$TENSORRT_WHEEL" ]; then
-    echo "🚀 Installing TensorRT..."
-    uv pip install "$TENSORRT_WHEEL"
-    echo "✅ TensorRT installed successfully"
-else
-    echo "⚠️  TensorRT wheel not found at $TENSORRT_WHEEL"
-    echo "   TensorRT acceleration will not be available"
-    echo "   You can install it later if the wheel becomes available"
-fi
-
 # Verify installation
 echo "🔍 Verifying installation..."
 python -c "

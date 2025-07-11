@@ -179,8 +179,8 @@ def parse_arguments():
     parser.add_argument(
         '--object-confidence',
         type=float,
-        default=config.OBJECT_MIN_CONFIDENCE,
-        help=f'Minimum confidence for object detections (default: {config.OBJECT_MIN_CONFIDENCE})'
+        default=config.CONFIDENCE_THRESHOLD,
+        help=f'Minimum confidence for object detections (default: {config.CONFIDENCE_THRESHOLD})'
     )
 
     parser.add_argument(
