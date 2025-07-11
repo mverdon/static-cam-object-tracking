@@ -49,25 +49,9 @@ ehthumbs.db
 Thumbs.db
 
 # Project specific
-videos/*.mp4
-videos/*.avi
-videos/*.mov
-videos/*.mkv
-videos/*.wmv
-videos/*.flv
-videos/*.webm
-videos/*.png
-!videos/.gitkeep
-outputs/*.mp4
-outputs/*.avi
-outputs/*.mov
-outputs/*.mkv
-outputs/*.wmv
-outputs/*.flv
-outputs/*.webm
-models/*.pt
-models/*.onnx
-models/*.engine
+videos/
+outputs/
+models/
 *.log
 
 # Jupyter
