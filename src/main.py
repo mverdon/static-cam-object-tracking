@@ -384,7 +384,7 @@ def process_video(input_path: str, output_path: str, args):
 
             # Display if requested
             if args.display:
-                cv2.imshow('Object Tracking', output_frame)
+                cv2.imshow('Object Tracking', cv2.resize(output_frame, (1280, 720)))
                 if cv2.waitKey(1) & 0xFF == ord('q'):
                     break
 
