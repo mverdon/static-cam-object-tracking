@@ -53,10 +53,17 @@ python src/main.py --input videos/your_video.mp4 --output outputs/tracked_video.
 - `--display`: Show video during processing
 - `--no-cuda`: Disable CUDA acceleration
 - `--no-tensorrt`: Disable TensorRT optimization
+- `--track-videos`: Generate separate video files for each detected track
+- `--track-crop-ratio`: Ratio to expand bounding box for track video cropping (default: 1.5)
 
 Example with different tracker and custom FPS:
 ```bash
 python src/main.py --input videos/your_video.mp4 --tracker botsort --fps 30 --display
+```
+
+Example with track video generation:
+```bash
+python src/main.py --input videos/your_video.mp4 --track-videos --track-crop-ratio 2.0
 ```
 
 ## Project Structure
@@ -71,6 +78,7 @@ static-cam-object-tracking/
 │   └── utils.py                     # Utility functions
 ├── videos/                          # Input videos
 ├── outputs/                         # Output videos with tracking
+├── track_outputs/                   # Individual track videos (when enabled)
 ├── models/                          # Model weights (auto-downloaded)
 ├── pyproject.toml                   # Project configuration
 └── README.md                        # This file
@@ -95,6 +103,50 @@ The system supports two state-of-the-art tracking algorithms:
 - **BotsSort**: Advanced tracking with appearance features and motion compensation
 
 Both algorithms are built into YOLO and optimized for performance.
+
+## Track Video Generation
+
+The system can generate separate video files for each detected and tracked object, providing cropped views that follow individual objects throughout the video.
+
+### Features
+
+- **Individual Track Videos**: Each detected object gets its own video file
+- **Automatic Cropping**: Frames are cropped around each object with configurable padding
+- **Preserved Resolution**: Original frame quality is maintained in cropped videos
+- **Fixed Aspect Ratio**: Consistent crop dimensions for smooth playback
+- **Smart Sizing**: Automatic handling of minimum and maximum crop sizes
+
+### Usage
+
+Enable track video generation with the `--track-videos` flag:
+
+```bash
+python src/main.py --input videos/your_video.mp4 --track-videos
+```
+
+Customize the crop area around objects:
+
+```bash
+python src/main.py --input videos/your_video.mp4 --track-videos --track-crop-ratio 2.0
+```
+
+### Configuration
+
+Track video settings can be configured in `src/config.py`:
+
+- `TRACK_VIDEO_CROP_RATIO`: Default crop expansion ratio (1.5)
+- `TRACK_VIDEO_MIN_SIZE`: Minimum crop dimensions (64x64)
+- `TRACK_VIDEO_MAX_SIZE`: Maximum crop dimensions (512x512)
+- `TRACK_VIDEOS_DIR`: Output directory for track videos
+
+### Output
+
+Track videos are saved in the `track_outputs/` directory with filenames like:
+- `track_0001_horse.mp4`
+- `track_0002_person.mp4`
+- `track_0003_horse.mp4`
+
+Each filename includes the track ID and detected object class for easy identification.
 
 ## License
 

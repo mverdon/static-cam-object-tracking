@@ -6,13 +6,170 @@ import logging
 import cv2
 import numpy as np
 import math
-from typing import List, Tuple, Optional
+from typing import List, Tuple, Optional, Dict, Any
 from pathlib import Path
 import torch
 
 from . import config
 
 logger = logging.getLogger(__name__)
+
+
+class TrackVideoManager:
+    """Manages separate video files for each tracked object."""
+
+    def __init__(self, output_dir: str, fps: float, crop_ratio: float = 1.5):
+        """
+        Initialize the track video manager.
+
+        Args:
+            output_dir: Directory to save track videos
+            fps: Frames per second for track videos
+            crop_ratio: Ratio to expand bounding box for cropping
+        """
+        self.output_dir = Path(output_dir)
+        self.output_dir.mkdir(parents=True, exist_ok=True)
+        self.fps = fps
+        self.crop_ratio = crop_ratio
+        self.track_writers: Dict[int, cv2.VideoWriter] = {}
+        self.track_info: Dict[int, Dict[str, Any]] = {}
+
+        logger.info(f"TrackVideoManager initialized: {self.output_dir}, crop_ratio={crop_ratio}")
+
+    def _calculate_crop_region(self, bbox: Tuple[float, float, float, float],
+                              frame_shape: Tuple[int, int]) -> Tuple[int, int, int, int]:
+        """
+        Calculate the crop region around a bounding box.
+
+        Args:
+            bbox: Bounding box (x1, y1, x2, y2)
+            frame_shape: Frame shape (height, width)
+
+        Returns:
+            Crop region (x1, y1, x2, y2) clamped to frame boundaries
+        """
+        x1, y1, x2, y2 = bbox
+        frame_height, frame_width = frame_shape[:2]
+
+        # Calculate center and dimensions
+        center_x = (x1 + x2) / 2
+        center_y = (y1 + y2) / 2
+        width = x2 - x1
+        height = y2 - y1
+
+        # Apply crop ratio
+        new_width = width * self.crop_ratio
+        new_height = height * self.crop_ratio
+
+        # Ensure minimum size
+        new_width = max(new_width, config.TRACK_VIDEO_MIN_SIZE[0])
+        new_height = max(new_height, config.TRACK_VIDEO_MIN_SIZE[1])
+
+        # Ensure maximum size
+        new_width = min(new_width, config.TRACK_VIDEO_MAX_SIZE[0])
+        new_height = min(new_height, config.TRACK_VIDEO_MAX_SIZE[1])
+
+        # Calculate new bounds
+        half_width = new_width / 2
+        half_height = new_height / 2
+
+        crop_x1 = int(center_x - half_width)
+        crop_y1 = int(center_y - half_height)
+        crop_x2 = int(center_x + half_width)
+        crop_y2 = int(center_y + half_height)
+
+        # Clamp to frame boundaries
+        crop_x1 = max(0, crop_x1)
+        crop_y1 = max(0, crop_y1)
+        crop_x2 = min(frame_width, crop_x2)
+        crop_y2 = min(frame_height, crop_y2)
+
+        return crop_x1, crop_y1, crop_x2, crop_y2
+
+    def _get_track_filename(self, track_id: int, class_name: str) -> str:
+        """Generate filename for a track video."""
+        return f"track_{track_id:04d}_{class_name}.{config.TRACK_VIDEO_FORMAT}"
+
+    def add_track_frame(self, track: Dict[str, Any], frame: np.ndarray):
+        """
+        Add a frame for a specific track.
+
+        Args:
+            track: Track information dictionary
+            frame: Full frame
+        """
+        track_id = track['track_id']
+        class_name = track['class_name']
+        bbox = track['bbox']
+
+        # Calculate crop region
+        crop_x1, crop_y1, crop_x2, crop_y2 = self._calculate_crop_region(bbox, frame.shape)
+
+        # Crop the frame
+        cropped_frame = frame[crop_y1:crop_y2, crop_x1:crop_x2]
+
+        # Skip if crop is too small
+        if cropped_frame.shape[0] < 10 or cropped_frame.shape[1] < 10:
+            return
+
+        # Initialize writer for this track if not exists
+        if track_id not in self.track_writers:
+            filename = self._get_track_filename(track_id, class_name)
+            output_path = self.output_dir / filename
+
+            # Store track info
+            self.track_info[track_id] = {
+                'class_name': class_name,
+                'filename': filename,
+                'path': str(output_path),
+                'frame_count': 0,
+                'crop_width': crop_x2 - crop_x1,
+                'crop_height': crop_y2 - crop_y1
+            }
+
+            # Create video writer
+            fourcc = cv2.VideoWriter.fourcc(*config.TRACK_VIDEO_CODEC)
+            writer = cv2.VideoWriter(
+                str(output_path),
+                fourcc,
+                self.fps,
+                (crop_x2 - crop_x1, crop_y2 - crop_y1)
+            )
+
+            if not writer.isOpened():
+                logger.error(f"Failed to create video writer for track {track_id}: {output_path}")
+                return
+
+            width = crop_x2 - crop_x1
+            height = crop_y2 - crop_y1
+
+            self.track_writers[track_id] = writer
+            logger.info(f"Created video writer for track {track_id}: {filename}, size={width}x{height}")
+
+        # Write frame
+        if track_id in self.track_writers:
+            # Ensure frame matches expected dimensions
+            expected_width = self.track_info[track_id]['crop_width']
+            expected_height = self.track_info[track_id]['crop_height']
+
+            if cropped_frame.shape[1] != expected_width or cropped_frame.shape[0] != expected_height:
+                cropped_frame = cv2.resize(cropped_frame, (expected_width, expected_height))
+
+            self.track_writers[track_id].write(cropped_frame)
+            self.track_info[track_id]['frame_count'] += 1
+
+    def close_all(self):
+        """Close all track video writers and log summary."""
+        logger.info("Closing track video writers...")
+
+        for track_id, writer in self.track_writers.items():
+            writer.release()
+            track_info = self.track_info[track_id]
+            logger.info(f"Track {track_id} ({track_info['class_name']}): "
+                       f"{track_info['frame_count']} frames -> {track_info['filename']}")
+
+        self.track_writers.clear()
+        logger.info(f"Generated {len(self.track_info)} track videos in {self.output_dir}")
 
 
 def setup_logging():
@@ -183,7 +340,7 @@ def print_system_info():
     if torch.cuda.is_available():
         current_device = torch.cuda.current_device()
         print(f"CUDA available: Yes")
-        print(f"CUDA version: {torch.version.cuda}")
+        print(f"PyTorch version: {torch.__version__}")
         print(f"Current CUDA device: {current_device}")
         list_cuda_devices()
     else:

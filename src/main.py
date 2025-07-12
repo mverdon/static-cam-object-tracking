@@ -18,7 +18,8 @@ from src.utils import (
     validate_video_file,
     get_available_video_files,
     setup_logging,
-    print_system_info
+    print_system_info,
+    TrackVideoManager
 )
 
 logger = logging.getLogger(__name__)
@@ -209,6 +210,19 @@ def parse_arguments():
         help='List available CUDA devices and exit'
     )
 
+    parser.add_argument(
+        '--track-videos',
+        action='store_true',
+        help='Generate separate video files for each detected track'
+    )
+
+    parser.add_argument(
+        '--track-crop-ratio',
+        type=float,
+        default=config.TRACK_VIDEO_CROP_RATIO,
+        help=f'Ratio to expand bounding box for track video cropping (default: {config.TRACK_VIDEO_CROP_RATIO})'
+    )
+
     return parser.parse_args()
 
 
@@ -246,6 +260,17 @@ def process_video(input_path: str, output_path: str, args):
     video_info = get_video_info(input_path)
     logger.info(f"Processing video: {input_path}")
     logger.info(f"Video info: {video_info}")
+
+    # Initialize track video manager if enabled
+    track_video_manager = None
+    if args.track_videos or config.ENABLE_TRACK_VIDEOS:
+        output_fps = args.fps or config.TARGET_FPS or video_info['fps']
+        track_video_manager = TrackVideoManager(
+            output_dir=str(config.TRACK_VIDEOS_DIR),
+            fps=output_fps,
+            crop_ratio=args.track_crop_ratio
+        )
+        logger.info("Track video generation enabled")
 
     # Load mask if available and masking is enabled
     mask = None
@@ -326,6 +351,11 @@ def process_video(input_path: str, output_path: str, args):
             if args.specified_only:
                 tracks = [t for t in tracks if t['class_id'] == config.OBJECT_CLASS_ID]
 
+            # Add frames to track videos if enabled
+            if track_video_manager:
+                for track in tracks:
+                    track_video_manager.add_track_frame(track, frame)
+
             # Draw tracking results
             output_frame = draw_yolo_tracks(frame, tracks)
 
@@ -369,6 +399,8 @@ def process_video(input_path: str, output_path: str, args):
         # Cleanup
         cap.release()
         writer.release()
+        if track_video_manager:
+            track_video_manager.close_all()
         if args.display:
             cv2.destroyAllWindows()
 
