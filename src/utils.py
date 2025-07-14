@@ -34,57 +34,75 @@ class TrackVideoManager:
         self.track_writers: Dict[int, cv2.VideoWriter] = {}
         self.track_info: Dict[int, Dict[str, Any]] = {}
 
-        logger.info(f"TrackVideoManager initialized: {self.output_dir}, crop_ratio={crop_ratio}")
+        # Fixed output video dimensions (all track videos will have this size)
+        self.output_width = config.TRACK_VIDEO_MAX_SIZE[0]
+        self.output_height = config.TRACK_VIDEO_MAX_SIZE[1]
+        self.output_aspect_ratio = self.output_width / self.output_height
 
-    def _calculate_crop_region(self, bbox: Tuple[float, float, float, float],
-                              frame_shape: Tuple[int, int]) -> Tuple[int, int, int, int]:
+        logger.info(f"TrackVideoManager initialized: {self.output_dir}, crop_ratio={crop_ratio}")
+        logger.info(f"Fixed output size: {self.output_width}x{self.output_height}")
+
+    def _calculate_crop_region_and_padding(self, bbox: Tuple[float, float, float, float],
+                                          frame_shape: Tuple[int, int]) -> Tuple[Tuple[int, int, int, int], Tuple[int, int, int, int]]:
         """
-        Calculate the crop region around a bounding box.
+        Calculate the crop region around a bounding box with fixed aspect ratio.
+
+        This method ensures consistent video dimensions by:
+        1. Using bbox center and height to determine crop size
+        2. Maintaining the output video aspect ratio
+        3. Calculating padding needed for out-of-bounds areas
 
         Args:
             bbox: Bounding box (x1, y1, x2, y2)
             frame_shape: Frame shape (height, width)
 
         Returns:
-            Crop region (x1, y1, x2, y2) clamped to frame boundaries
+            Tuple of (crop_region, padding):
+            - crop_region: (x1, y1, x2, y2) - actual crop coordinates (may be out of bounds)
+            - padding: (top, bottom, left, right) - padding needed for out-of-bounds areas
         """
         x1, y1, x2, y2 = bbox
         frame_height, frame_width = frame_shape[:2]
 
-        # Calculate center and dimensions
+        # Calculate center and bbox dimensions
         center_x = (x1 + x2) / 2
         center_y = (y1 + y2) / 2
-        width = x2 - x1
-        height = y2 - y1
+        bbox_height = y2 - y1
 
-        # Apply crop ratio
-        new_width = width * self.crop_ratio
-        new_height = height * self.crop_ratio
+        # Calculate crop dimensions based on bbox height and crop ratio
+        crop_height = bbox_height * self.crop_ratio
+        crop_width = crop_height * self.output_aspect_ratio
 
-        # Ensure minimum size
-        new_width = max(new_width, config.TRACK_VIDEO_MIN_SIZE[0])
-        new_height = max(new_height, config.TRACK_VIDEO_MIN_SIZE[1])
+        # Ensure minimum size based on bbox height
+        min_crop_height = max(crop_height, config.TRACK_VIDEO_MIN_SIZE[1])
+        min_crop_width = min_crop_height * self.output_aspect_ratio
 
-        # Ensure maximum size
-        new_width = min(new_width, config.TRACK_VIDEO_MAX_SIZE[0])
-        new_height = min(new_height, config.TRACK_VIDEO_MAX_SIZE[1])
+        # Use the larger of calculated or minimum dimensions
+        final_crop_height = max(crop_height, min_crop_height)
+        final_crop_width = max(crop_width, min_crop_width)
 
-        # Calculate new bounds
-        half_width = new_width / 2
-        half_height = new_height / 2
+        # Calculate crop bounds centered on bbox center
+        half_width = final_crop_width / 2
+        half_height = final_crop_height / 2
 
         crop_x1 = int(center_x - half_width)
         crop_y1 = int(center_y - half_height)
         crop_x2 = int(center_x + half_width)
         crop_y2 = int(center_y + half_height)
 
-        # Clamp to frame boundaries
-        crop_x1 = max(0, crop_x1)
-        crop_y1 = max(0, crop_y1)
-        crop_x2 = min(frame_width, crop_x2)
-        crop_y2 = min(frame_height, crop_y2)
+        # Calculate padding needed for out-of-bounds areas
+        pad_left = max(0, -crop_x1)
+        pad_top = max(0, -crop_y1)
+        pad_right = max(0, crop_x2 - frame_width)
+        pad_bottom = max(0, crop_y2 - frame_height)
 
-        return crop_x1, crop_y1, crop_x2, crop_y2
+        # Adjust crop coordinates to be within frame bounds
+        crop_x1_clamped = max(0, crop_x1)
+        crop_y1_clamped = max(0, crop_y1)
+        crop_x2_clamped = min(frame_width, crop_x2)
+        crop_y2_clamped = min(frame_height, crop_y2)
+
+        return (crop_x1, crop_y1, crop_x2, crop_y2), (pad_top, pad_bottom, pad_left, pad_right)
 
     def _get_track_filename(self, track_id: int, class_name: str) -> str:
         """Generate filename for a track video."""
@@ -92,7 +110,7 @@ class TrackVideoManager:
 
     def add_track_frame(self, track: Dict[str, Any], frame: np.ndarray):
         """
-        Add a frame for a specific track.
+        Add a frame for a specific track with fixed output dimensions.
 
         Args:
             track: Track information dictionary
@@ -102,59 +120,70 @@ class TrackVideoManager:
         class_name = track['class_name']
         bbox = track['bbox']
 
-        # Calculate crop region
-        crop_x1, crop_y1, crop_x2, crop_y2 = self._calculate_crop_region(bbox, frame.shape)
-
-        # Crop the frame
-        cropped_frame = frame[crop_y1:crop_y2, crop_x1:crop_x2]
-
-        # Skip if crop is too small
-        if cropped_frame.shape[0] < 10 or cropped_frame.shape[1] < 10:
-            return
+        # Calculate crop region and padding
+        (crop_x1, crop_y1, crop_x2, crop_y2), (pad_top, pad_bottom, pad_left, pad_right) = \
+            self._calculate_crop_region_and_padding(bbox, frame.shape)
 
         # Initialize writer for this track if not exists
         if track_id not in self.track_writers:
             filename = self._get_track_filename(track_id, class_name)
             output_path = self.output_dir / filename
 
-            # Store track info
+            # Store track info with fixed dimensions
             self.track_info[track_id] = {
                 'class_name': class_name,
                 'filename': filename,
                 'path': str(output_path),
                 'frame_count': 0,
-                'crop_width': crop_x2 - crop_x1,
-                'crop_height': crop_y2 - crop_y1
+                'crop_width': self.output_width,
+                'crop_height': self.output_height
             }
 
-            # Create video writer
+            # Create video writer with fixed output dimensions
             fourcc = cv2.VideoWriter.fourcc(*config.TRACK_VIDEO_CODEC)
             writer = cv2.VideoWriter(
                 str(output_path),
                 fourcc,
                 self.fps,
-                (crop_x2 - crop_x1, crop_y2 - crop_y1)
+                (self.output_width, self.output_height)
             )
 
             if not writer.isOpened():
                 logger.error(f"Failed to create video writer for track {track_id}: {output_path}")
                 return
 
-            width = crop_x2 - crop_x1
-            height = crop_y2 - crop_y1
-
             self.track_writers[track_id] = writer
-            logger.info(f"Created video writer for track {track_id}: {filename}, size={width}x{height}")
+            logger.info(f"Created video writer for track {track_id}: {filename}, "
+                       f"size={self.output_width}x{self.output_height}")
 
-        # Write frame
+        # Create the cropped and padded frame
         if track_id in self.track_writers:
-            # Ensure frame matches expected dimensions
-            expected_width = self.track_info[track_id]['crop_width']
-            expected_height = self.track_info[track_id]['crop_height']
+            # Step 1: Crop the frame (may include out-of-bounds areas)
+            frame_height, frame_width = frame.shape[:2]
 
-            if cropped_frame.shape[1] != expected_width or cropped_frame.shape[0] != expected_height:
-                cropped_frame = cv2.resize(cropped_frame, (expected_width, expected_height))
+            # Clamp crop coordinates to frame boundaries
+            crop_x1_clamped = max(0, crop_x1)
+            crop_y1_clamped = max(0, crop_y1)
+            crop_x2_clamped = min(frame_width, crop_x2)
+            crop_y2_clamped = min(frame_height, crop_y2)
 
+            # Extract the available portion of the crop
+            cropped_frame = frame[crop_y1_clamped:crop_y2_clamped, crop_x1_clamped:crop_x2_clamped]
+
+            # Step 2: Add black padding for out-of-bounds areas
+            if pad_top > 0 or pad_bottom > 0 or pad_left > 0 or pad_right > 0:
+                cropped_frame = cv2.copyMakeBorder(
+                    cropped_frame,
+                    pad_top, pad_bottom, pad_left, pad_right,
+                    cv2.BORDER_CONSTANT,
+                    value=(0, 0, 0)  # Black padding
+                )
+
+            # Step 3: Resize to fixed output dimensions
+            if cropped_frame.shape[1] != self.output_width or cropped_frame.shape[0] != self.output_height:
+                cropped_frame = cv2.resize(cropped_frame, (self.output_width, self.output_height))
+
+            # Step 4: Write the frame
             self.track_writers[track_id].write(cropped_frame)
             self.track_info[track_id]['frame_count'] += 1
 

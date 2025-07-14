@@ -94,8 +94,8 @@ DEFAULT_COLOR = (128, 128, 128)  # gray
 # Track-specific video output configuration
 ENABLE_TRACK_VIDEOS = False  # Enable separate video files for each track
 TRACK_VIDEO_CROP_RATIO = 1.5  # Ratio to expand the bounding box for cropping (1.0 = exact bbox, 2.0 = double size)
-TRACK_VIDEO_MIN_SIZE = (128, 72)  # Minimum crop size to ensure readability
-TRACK_VIDEO_MAX_SIZE = (1280, 720)  # Maximum crop size to control file sizes
+TRACK_VIDEO_MIN_SIZE = (128, 72)  # Minimum crop size to ensure readability (16:9 aspect ratio)
+TRACK_VIDEO_MAX_SIZE = (1280, 720)  # Fixed output size for all track videos (16:9 aspect ratio)
 TRACK_VIDEO_FORMAT = "mp4"
 TRACK_VIDEO_CODEC = "mp4v"
 TRACK_VIDEOS_DIR = OUTPUTS_DIR / "track_outputs"  # Directory for track-specific videos

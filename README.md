@@ -110,11 +110,11 @@ The system can generate separate video files for each detected and tracked objec
 
 ### Features
 
-- **Individual Track Videos**: Each detected object gets its own video file
-- **Automatic Cropping**: Frames are cropped around each object with configurable padding
-- **Preserved Resolution**: Original frame quality is maintained in cropped videos
-- **Fixed Aspect Ratio**: Consistent crop dimensions for smooth playback
-- **Smart Sizing**: Automatic handling of minimum and maximum crop sizes
+- **Individual Track Videos**: Each detected object gets its own video file with fixed dimensions
+- **Smart Cropping Algorithm**: Uses object center and height with configurable padding
+- **Consistent Video Dimensions**: All track videos have identical size (1280x720 by default)
+- **Edge Handling**: Automatic black padding for objects near frame boundaries
+- **Preserved Quality**: High-quality cropping with proper aspect ratio maintenance
 
 ### Usage
 
@@ -135,8 +135,8 @@ python src/main.py --input videos/your_video.mp4 --track-videos --track-crop-rat
 Track video settings can be configured in `src/config.py`:
 
 - `TRACK_VIDEO_CROP_RATIO`: Default crop expansion ratio (1.5)
-- `TRACK_VIDEO_MIN_SIZE`: Minimum crop dimensions (64x64)
-- `TRACK_VIDEO_MAX_SIZE`: Maximum crop dimensions (512x512)
+- `TRACK_VIDEO_MIN_SIZE`: Minimum crop dimensions (128x72)
+- `TRACK_VIDEO_MAX_SIZE`: Fixed output dimensions for all videos (1280x720)
 - `TRACK_VIDEOS_DIR`: Output directory for track videos
 
 ### Output
