@@ -99,6 +99,7 @@ TRACK_VIDEO_MAX_SIZE = (1280, 720)  # Fixed output size for all track videos (16
 TRACK_VIDEO_FORMAT = "mp4"
 TRACK_VIDEO_CODEC = "mp4v"
 TRACK_VIDEOS_DIR = OUTPUTS_DIR / "track_outputs"  # Directory for track-specific videos
+TRACK_POS_BUFFER_SIZE = 30  # Number of previous positions to store for each track
 
 # Ensure track videos directory exists
 TRACK_VIDEOS_DIR.mkdir(exist_ok=True)

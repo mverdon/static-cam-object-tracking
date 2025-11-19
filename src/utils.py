@@ -33,6 +33,8 @@ class TrackVideoManager:
         self.crop_ratio = crop_ratio
         self.track_writers: Dict[int, cv2.VideoWriter] = {}
         self.track_info: Dict[int, Dict[str, Any]] = {}
+        self.track_pos_buffer: Dict[int, List[Tuple[int, int]]] = {}
+        self.track_centers: Dict[int, Tuple[float, float]] = {}
 
         # Fixed output video dimensions (all track videos will have this size)
         self.output_width = config.TRACK_VIDEO_MAX_SIZE[0]
@@ -78,8 +80,8 @@ class TrackVideoManager:
         min_crop_width = min_crop_height * self.output_aspect_ratio
 
         # Use the larger of calculated or minimum dimensions
-        final_crop_height = max(crop_height, min_crop_height)
-        final_crop_width = max(crop_width, min_crop_width)
+        final_crop_height = 480
+        final_crop_width = 854
 
         # Calculate crop bounds centered on bbox center
         half_width = final_crop_width / 2
@@ -95,12 +97,6 @@ class TrackVideoManager:
         pad_top = max(0, -crop_y1)
         pad_right = max(0, crop_x2 - frame_width)
         pad_bottom = max(0, crop_y2 - frame_height)
-
-        # Adjust crop coordinates to be within frame bounds
-        crop_x1_clamped = max(0, crop_x1)
-        crop_y1_clamped = max(0, crop_y1)
-        crop_x2_clamped = min(frame_width, crop_x2)
-        crop_y2_clamped = min(frame_height, crop_y2)
 
         return (crop_x1, crop_y1, crop_x2, crop_y2), (pad_top, pad_bottom, pad_left, pad_right)
 
@@ -119,6 +115,35 @@ class TrackVideoManager:
         track_id = track['track_id']
         class_name = track['class_name']
         bbox = track['bbox']
+
+        # Update track position buffer
+        if track_id not in self.track_pos_buffer:
+            self.track_pos_buffer[track_id] = []
+        center_x = (bbox[0] + bbox[2]) / 2
+        center_y = (bbox[1] + bbox[3]) / 2
+        self.track_pos_buffer[track_id].append((center_x, center_y))
+
+        # Limit buffer size
+        if len(self.track_pos_buffer[track_id]) > config.TRACK_POS_BUFFER_SIZE:
+            self.track_pos_buffer[track_id].pop(0)
+
+        # Calculate center of mass (average position) for the track
+        if len(self.track_pos_buffer[track_id]) > 0:
+            avg_x = sum(pos[0] for pos in self.track_pos_buffer[track_id]) / len(self.track_pos_buffer[track_id])
+            avg_y = sum(pos[1] for pos in self.track_pos_buffer[track_id]) / len(self.track_pos_buffer[track_id])
+            self.track_centers[track_id] = (avg_x, avg_y)
+
+        # Adjust bbox to center around average position if available
+        if track_id in self.track_centers:
+            center_x, center_y = self.track_centers[track_id]
+            bbox_width = bbox[2] - bbox[0]
+            bbox_height = bbox[3] - bbox[1]
+            bbox = (
+                center_x - bbox_width / 2,
+                center_y - bbox_height / 2,
+                center_x + bbox_width / 2,
+                center_y + bbox_height / 2
+            )
 
         # Calculate crop region and padding
         (crop_x1, crop_y1, crop_x2, crop_y2), (pad_top, pad_bottom, pad_left, pad_right) = \
