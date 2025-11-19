@@ -265,8 +265,10 @@ def process_video(input_path: str, output_path: str, args):
     track_video_manager = None
     if args.track_videos or config.ENABLE_TRACK_VIDEOS:
         output_fps = args.fps or config.TARGET_FPS or video_info['fps']
+        input_filename = Path(input_path).stem
+        track_output_dir = str(config.TRACK_VIDEOS_DIR) + '_' + input_filename
         track_video_manager = TrackVideoManager(
-            output_dir=str(config.TRACK_VIDEOS_DIR),
+            output_dir=track_output_dir,
             fps=output_fps,
             crop_ratio=args.track_crop_ratio
         )

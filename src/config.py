@@ -101,9 +101,6 @@ TRACK_VIDEO_CODEC = "mp4v"
 TRACK_VIDEOS_DIR = OUTPUTS_DIR / "track_outputs"  # Directory for track-specific videos
 TRACK_POS_BUFFER_SIZE = 30  # Number of previous positions to store for each track
 
-# Ensure track videos directory exists
-TRACK_VIDEOS_DIR.mkdir(exist_ok=True)
-
 # Logging configuration
 LOG_LEVEL = "INFO"  # Options: DEBUG, INFO, WARNING, ERROR
 LOG_TO_FILE = True
